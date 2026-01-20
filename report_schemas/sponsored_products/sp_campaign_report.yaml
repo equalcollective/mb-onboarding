@@ -1,0 +1,238 @@
+# Sponsored Products Campaign Report Schema
+
+report_type: "sponsored_products_campaign"
+display_name: "Sponsored Products Campaign Report"
+description: "Amazon Sponsored Products performance report with advertising metrics by campaign"
+allow_extra_columns: false  # Strict validation - no extra columns allowed
+
+# Temporal configuration - defines how time periods are handled
+temporal_config:
+  model: "row"
+  granularity_field: "period_granularity"
+  supported_granularities: ["daily"]
+  row_date_field: "record_date"
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+uniqueness_keys:
+  - "seller_id"       # Metadata column
+  - "marketplace"     # Metadata column
+  - "record_date"     # Report column
+  - "campaign_name"   # Report column
+  - "portfolio_name"  # Report column
+  - "program_type"    # Report column
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["daily"]
+      default: "daily"
+      description: "Time granularity - always 'daily' for Sponsored Products"
+
+# Upload validation checks - validates CSV content against existing data
+upload_validation_checks:
+  enabled: true
+  applies_from_upload: 2  # Skip validation for first upload (no data to compare)
+
+  intersection_checks:
+    - column: "campaign_name"
+      min_intersection_percent: 30
+      check_type: "set_intersection"
+      scope: "seller_marketplace"
+      description: "Campaign names must have 30% overlap with existing data (campaigns change frequently)"
+
+# All columns are required from Amazon's Sponsored Products Campaign Report
+required_columns:
+  # Date and Currency
+  - aliases:
+      - "Date"
+    db_column: "record_date"
+    data_type: "date"
+    validation: "valid_date"
+    description: "Report date"
+
+  - aliases:
+      - "Currency"
+    db_column: "currency"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Currency code (USD, EUR, etc.)"
+
+  # Campaign Information
+  - aliases:
+      - "Portfolio name"
+    db_column: "portfolio_name"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Portfolio name for the campaign"
+
+  - aliases:
+      - "Program Type"
+      - "Campaign Type"
+    db_column: "program_type"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Program type (e.g., Sponsored Products)"
+
+  - aliases:
+      - "Campaign Name"
+    db_column: "campaign_name"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Advertising campaign name"
+
+  - aliases:
+      - "Retailer"
+    db_column: "retailer"
+    data_type: "string"
+    validation: "allow_empty"
+    required: false
+    description: "Retailer name (e.g., Amazon)"
+
+  - aliases:
+      - "Country"
+    db_column: "country"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Country name"
+
+  - aliases:
+      - "Status"
+    db_column: "status"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Campaign status (ENABLED, PAUSED, ARCHIVED)"
+
+  - aliases:
+      - "Budget Amount"
+      - "Budget"
+    db_column: "budget_amount"
+    data_type: "currency"
+    validation: "allow_empty"
+    description: "Daily budget amount for the campaign"
+
+  - aliases:
+      - "Targeting Type"
+    db_column: "targeting_type"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Targeting type (Manual targeting, Automatic targeting)"
+
+  - aliases:
+      - "Bidding strategy"
+    db_column: "bidding_strategy"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Bidding strategy (Dynamic bids - down only, Dynamic bids - up and down, Fixed bids)"
+
+  # Performance Metrics - Current Period
+  - aliases:
+      - "Impressions"
+    db_column: "impressions"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of times ad was displayed"
+
+  - aliases:
+      - "Clicks"
+    db_column: "clicks"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of clicks on the ad"
+
+  - aliases:
+      - "Click-Thru Rate (CTR)"
+    db_column: "ctr"
+    data_type: "percentage"
+    validation: ["percentage", "allow_empty"]
+    description: "Click-through rate percentage"
+
+  - aliases:
+      - "Spend"
+    db_column: "spend"
+    data_type: "currency"
+    validation: "allow_empty"
+    description: "Total advertising spend"
+
+  - aliases:
+      - "Cost Per Click (CPC)"
+    db_column: "cpc"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Average cost per click"
+
+  # Performance Metrics - Last Year Comparison
+  - aliases:
+      - "Last Year Impressions"
+    db_column: "last_year_impressions"
+    data_type: "integer"
+    validation: ["non_negative", "allow_empty"]
+    description: "Impressions from the same period last year"
+
+  - aliases:
+      - "Last Year Clicks"
+    db_column: "last_year_clicks"
+    data_type: "integer"
+    validation: ["non_negative", "allow_empty"]
+    description: "Clicks from the same period last year"
+
+  - aliases:
+      - "Last Year Spend"
+    db_column: "last_year_spend"
+    data_type: "currency"
+    validation: ["non_negative", "allow_empty"]
+    description: "Spend from the same period last year"
+
+  - aliases:
+      - "Last Year Cost Per Click (CPC)"
+    db_column: "last_year_cpc"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Average cost per click from the same period last year"
+
+  # Sales Metrics - 7 Day Attribution
+  - aliases:
+      - "7 Day Total Orders (#)"
+    db_column: "seven_day_total_orders"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total orders attributed within 7 days"
+
+  - aliases:
+      - "Total Advertising Cost of Sales (ACOS)"
+    db_column: "total_acos"
+    data_type: "percentage"
+    validation: "allow_null"
+    description: "Advertising cost of sales percentage"
+
+  - aliases:
+      - "Total Return on Advertising Spend (ROAS)"
+    db_column: "total_roas"
+    data_type: "decimal"
+    validation: "allow_null"
+    description: "Return on advertising spend"
+
+  - aliases:
+      - "7 Day Total Sales"
+    db_column: "seven_day_total_sales"
+    data_type: "currency"
+    validation: "non_negative"
+    description: "Total sales attributed within 7 days"
+

@@ -1,0 +1,182 @@
+# Sponsored Products Purchased Product Report Schema
+
+report_type: "sponsored_products_purchased_product"
+display_name: "Sponsored Products Purchased Product Report"
+description: "Amazon Sponsored Products Purchased Product report with cross-selling metrics"
+allow_extra_columns: false  # Strict validation - no extra columns allowed
+
+# Temporal configuration - defines how time periods are handled
+temporal_config:
+  model: "row"
+  granularity_field: "period_granularity"
+  supported_granularities: ["daily"]
+  row_date_field: "record_date"
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+uniqueness_keys:
+  - "seller_id"           # Metadata column
+  - "marketplace"         # Metadata column
+  - "record_date"         # Report column
+  - "portfolio_name"      # Report column
+  - "campaign_name"       # Report column
+  - "advertised_asin"     # Report column
+  - "advertised_sku"      # Report column
+  - "purchased_asin"      # Report column
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["daily"]
+      default: "daily"
+      description: "Time granularity - always 'daily' for Sponsored Products"
+
+# Upload validation checks - validates CSV content against existing data
+upload_validation_checks:
+  enabled: true
+  applies_from_upload: 2  # Skip validation for first upload (no data to compare)
+
+  intersection_checks:
+    - column: "campaign_name"
+      min_intersection_percent: 30
+      check_type: "set_intersection"
+      scope: "seller_marketplace"
+      description: "Campaign names must have 30% overlap with existing data (campaigns change frequently)"
+
+# All columns are required from Amazon's Sponsored Products Purchased Product Report
+# Note: Headers were inferred from data patterns
+required_columns:
+  # Date Information
+  - aliases:
+      - "Date"
+    db_column: "record_date"
+    data_type: "date"
+    validation: "valid_date"
+    description: "Report date"
+
+  # Campaign Information
+  - aliases:
+      - "Portfolio name"
+    db_column: "portfolio_name"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Portfolio name for the campaign"
+
+  - aliases:
+      - "Campaign Name"
+    db_column: "campaign_name"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Advertising campaign name"
+
+  # Location Information
+  - aliases:
+      - "Country"
+    db_column: "country"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Country name"
+
+  - aliases:
+      - "Currency"
+    db_column: "currency"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Currency code (USD, EUR, etc.)"
+
+  - aliases:
+      - "Ad Group Name"
+    db_column: "ad_group_name"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Ad group name within the campaign"
+
+  # Retailer Information
+  - aliases:
+      - "Retailer"
+    db_column: "retailer"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Retailer name (e.g., Amazon)"
+
+  # Advertised Product Information
+  - aliases:
+      - "Advertised SKU"
+    db_column: "advertised_sku"
+    data_type: "string"
+    validation: "non_empty"
+    description: "SKU of the advertised product"
+
+  - aliases:
+      - "Advertised ASIN"
+    db_column: "advertised_asin"
+    data_type: "string"
+    validation: "asin_format"
+    description: "ASIN of the advertised product"
+
+  # Search/Targeting Information
+  - aliases:
+      - "Customer Search Term"
+      - "Targeting"
+    db_column: "customer_search_term"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "The search term used by customers"
+
+  - aliases:
+      - "Match Type"
+    db_column: "match_type"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Match type (EXACT, PHRASE, BROAD, or empty for auto)"
+
+  # Purchased Product Information
+  - aliases:
+      - "Purchased ASIN"
+    db_column: "purchased_asin"
+    data_type: "string"
+    validation: "asin_format"
+    description: "ASIN of the product that was actually purchased"
+
+  # Performance Metrics (Other SKU = cross-sell purchases from different SKUs)
+  - aliases:
+      - "7 Day Total Orders (#)"
+      - "7 Day Other SKU Orders (#)"
+    db_column: "seven_day_other_sku_orders"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Other SKU orders attributed within 7 days"
+
+  - aliases:
+      - "7 Day Total Units (#)"
+      - "7 Day Other SKU Units (#)"
+    db_column: "seven_day_other_sku_units"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Other SKU units sold within 7 days"
+
+  - aliases:
+      - "7 Day Total Sales"
+      - "7 Day Other SKU Sales"
+    db_column: "seven_day_other_sku_sales"
+    data_type: "currency"
+    validation: "non_negative"
+    description: "Other SKU sales attributed within 7 days"
+

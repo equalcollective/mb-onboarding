@@ -1,0 +1,104 @@
+# Sponsored Products Performance over Time Report Schema
+
+report_type: "sponsored_products_performance_over_time"
+display_name: "Sponsored Products Performance over Time Report"
+description: "Amazon Sponsored Products Performance over Time report with aggregated daily metrics"
+allow_extra_columns: false  # Strict validation - no extra columns allowed
+
+# Temporal configuration - defines how time periods are handled
+temporal_config:
+  model: "row"
+  granularity_field: "period_granularity"
+  supported_granularities: ["daily"]
+  row_date_field: "record_date"
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+uniqueness_keys:
+  - "seller_id"           # Metadata column
+  - "marketplace"         # Metadata column
+  - "record_date"         # Report column
+  - "country"             # Report column
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["daily"]
+      default: "daily"
+      description: "Time granularity - always 'daily' for Sponsored Products"
+
+# Upload validation checks - validates CSV content against existing data
+upload_validation_checks:
+  enabled: true
+  applies_from_upload: 2  # Skip validation for first upload (no data to compare)
+
+  intersection_checks:
+    - column: "campaign_name"
+      min_intersection_percent: 30
+      check_type: "set_intersection"
+      scope: "seller_marketplace"
+      description: "Campaign names must have 30% overlap with existing data (campaigns change frequently)"
+
+# All columns are required from Amazon's Sponsored Products Performance over Time Report
+required_columns:
+  # Date and Location
+  - aliases:
+      - "Date"
+    db_column: "record_date"
+    data_type: "date"
+    validation: "valid_date"
+    description: "Report date"
+
+  - aliases:
+      - "Country"
+    db_column: "country"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Country name"
+
+  - aliases:
+      - "Currency"
+    db_column: "currency"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Currency code (USD, EUR, etc.)"
+
+  # Performance Metrics
+  - aliases:
+      - "Clicks"
+    db_column: "clicks"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of clicks on ads"
+
+  - aliases:
+      - "Cost Per Click (CPC)"
+    db_column: "cpc"
+    data_type: "currency"
+    validation: "non_negative"
+    description: "Average cost per click"
+
+  - aliases:
+      - "Spend"
+    db_column: "spend"
+    data_type: "currency"
+    validation: "non_negative"
+    description: "Total advertising spend"
+

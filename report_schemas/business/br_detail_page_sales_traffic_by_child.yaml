@@ -1,0 +1,422 @@
+# Detail Page Sales & Traffic By Child Item Business Report Schema
+
+report_type: "br_detail_page_sales_traffic_by_child"
+display_name: "Detail Page Sales & Traffic By Child Item Report"
+description: "Amazon Business Report with sales and traffic metrics by child item with device breakdown"
+allow_extra_columns: false  # Strict validation - no extra columns allowed
+
+# Temporal configuration - defines how time periods are handled
+temporal_config:
+  model: "range"
+  granularity_field: "period_granularity"
+  supported_granularities: ["weekly", "monthly", "quarterly"]
+  range_fields:
+    start: "period_start_date"
+    end: "period_end_date"
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+uniqueness_keys:
+  - "seller_id"       # Metadata column
+  - "marketplace"     # Metadata column
+  - "period_start_date"      # Metadata column (CHANGED from start_date)
+  - "period_end_date"        # Metadata column (CHANGED from end_date)
+  - "period_granularity"     # Metadata column (CHANGED from time_period)
+  - "dashboard_views"  # Metadata column
+  - "parent_asin"     # Report column
+  - "child_asin"      # Report column
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["weekly", "monthly", "quarterly"]
+      description: "Time granularity for this report - 'weekly', 'monthly', or 'quarterly'"
+
+    - name: "period_start_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "Period start date"
+
+    - name: "period_end_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "Period end date"
+
+    - name: "dashboard_views"
+      data_type: "string"
+      validation: "non_empty"
+      default: "all columns"
+      description: "Dashboard views - always 'all columns'"
+
+  optional:
+    - name: "asin_search"
+      data_type: "string"
+      validation: "allow_null"
+      default: null
+      description: "ASIN search - always null"
+      disabled: true
+
+upload_validation_checks:
+  enabled: true
+  applies_from_upload: 2  # Skip validation for first upload (no data to compare)
+
+  intersection_checks:
+    - column: "parent_asin"
+      min_intersection_percent: 50
+      check_type: "set_intersection"
+      scope: "seller_marketplace"
+      description: "Parent ASINs must have 50% overlap with existing data to prevent seller mismatch"
+
+# All columns from the Detail Page Sales & Traffic By Child Item Report
+# Each column uses 'aliases' list - first alias is canonical name, others are variants (e.g. UK en-dash format)
+required_columns:
+  # Product Identifiers
+  - aliases:
+      - "(Parent) ASIN"
+    db_column: "parent_asin"
+    data_type: "string"
+    validation: "asin_format"
+    description: "Parent product ASIN"
+
+  - aliases:
+      - "(Child) ASIN"
+    db_column: "child_asin"
+    data_type: "string"
+    validation: "asin_format"
+    description: "Child/variant product ASIN"
+
+  - aliases:
+      - "Title"
+    db_column: "product_title"
+    data_type: "string"
+    validation: "allow_null"
+    description: "Product title/name (optional)"
+    optional: true
+
+  # Traffic Metrics - Sessions by Device
+  - aliases:
+      - "Sessions - Mobile App"
+      - "Sessions – Mobile app"  # UK en-dash variant
+    db_column: "sessions_mobile_app"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of mobile app sessions"
+
+  - aliases:
+      - "Sessions - Mobile APP - B2B"
+      - "Sessions – Mobile APP – B2B"  # UK en-dash variant
+    db_column: "sessions_mobile_app_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of B2B mobile app sessions"
+
+  - aliases:
+      - "Sessions - Browser"
+      - "Sessions – Browser"  # UK en-dash variant
+    db_column: "sessions_browser"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of browser sessions"
+
+  - aliases:
+      - "Sessions - Browser - B2B"
+      - "Sessions – Browser – B2B"  # UK en-dash variant
+    db_column: "sessions_browser_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of B2B browser sessions"
+
+  - aliases:
+      - "Sessions - Total"
+      - "Sessions – Total"  # UK en-dash variant
+    db_column: "sessions_total"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Total number of sessions"
+
+  - aliases:
+      - "Sessions - Total - B2B"
+      - "Sessions – Total – B2B"  # UK en-dash variant
+    db_column: "sessions_total_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Total number of B2B sessions"
+
+  # Session Percentages by Device
+  - aliases:
+      - "Session Percentage - Mobile App"
+      - "Session percentage – Mobile App"  # UK en-dash + lowercase variant
+    db_column: "session_percentage_mobile_app"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of mobile app sessions"
+
+  - aliases:
+      - "Session Percentage - Mobile APP - B2B"
+      - "Session percentage – Mobile APP – B2B"  # UK en-dash + lowercase variant
+    db_column: "session_percentage_mobile_app_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of B2B mobile app sessions"
+
+  - aliases:
+      - "Session Percentage - Browser"
+      - "Session percentage – Browser"  # UK en-dash + lowercase variant
+    db_column: "session_percentage_browser"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of browser sessions"
+
+  - aliases:
+      - "Session Percentage - Browser - B2B"
+      - "Session percentage – Browser – B2B"  # UK en-dash + lowercase variant
+    db_column: "session_percentage_browser_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of B2B browser sessions"
+
+  - aliases:
+      - "Session Percentage - Total"
+      - "Session percentage – Total"  # UK en-dash + lowercase variant
+    db_column: "session_percentage_total"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of total sessions"
+
+  - aliases:
+      - "Session Percentage - Total - B2B"
+      - "Session percentage – Total – B2B"  # UK en-dash + lowercase variant
+    db_column: "session_percentage_total_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of total B2B sessions"
+
+  # Traffic Metrics - Page Views by Device
+  - aliases:
+      - "Page Views - Mobile App"
+      - "Page views – Mobile app"  # UK en-dash + lowercase variant
+    db_column: "page_views_mobile_app"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of mobile app page views"
+
+  - aliases:
+      - "Page Views - Mobile APP - B2B"
+      - "Page views – Mobile APP – B2B"  # UK en-dash + lowercase variant
+    db_column: "page_views_mobile_app_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of B2B mobile app page views"
+
+  - aliases:
+      - "Page Views - Browser"
+      - "Page views – Browser"  # UK en-dash + lowercase variant
+    db_column: "page_views_browser"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of browser page views"
+
+  - aliases:
+      - "Page Views - Browser - B2B"
+      - "Page views – Browser – B2B"  # UK en-dash + lowercase variant
+    db_column: "page_views_browser_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of B2B browser page views"
+
+  - aliases:
+      - "Page Views - Total"
+      - "Page views – Total"  # UK en-dash + lowercase variant
+    db_column: "page_views_total"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Total number of page views"
+
+  - aliases:
+      - "Page Views - Total - B2B"
+      - "Page views – Total – B2B"  # UK en-dash + lowercase variant
+    db_column: "page_views_total_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Total number of B2B page views"
+
+  # Page View Percentages by Device
+  - aliases:
+      - "Page Views Percentage - Mobile App"
+      - "Page views percentage – Mobile App"  # UK en-dash + lowercase variant
+    db_column: "page_views_percentage_mobile_app"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of mobile app page views"
+
+  - aliases:
+      - "Page Views Percentage - Mobile App - B2B"
+      - "Page views percentage – Mobile app – B2B"  # UK en-dash + lowercase variant
+    db_column: "page_views_percentage_mobile_app_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of B2B mobile app page views"
+
+  - aliases:
+      - "Page Views Percentage - Browser"
+      - "Page views percentage – Browser"  # UK en-dash + lowercase variant
+    db_column: "page_views_percentage_browser"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of browser page views"
+
+  - aliases:
+      - "Page Views Percentage - Browser - B2B"
+      - "Page views percentage – Browser – B2B"  # UK en-dash + lowercase variant
+    db_column: "page_views_percentage_browser_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of B2B browser page views"
+
+  - aliases:
+      - "Page Views Percentage - Total"
+      - "Page views percentage – Total"  # UK en-dash + lowercase variant
+    db_column: "page_views_percentage_total"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of total page views"
+
+  - aliases:
+      - "Page Views Percentage - Total - B2B"
+      - "Page views percentage – Total – B2B"  # UK en-dash + lowercase variant
+    db_column: "page_views_percentage_total_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of total B2B page views"
+
+  # Buy Box Metrics
+  - aliases:
+      - "Featured Offer (Buy Box) Percentage"
+      - "Featured Offer (Buy Box) percentage"  # UK lowercase variant
+    db_column: "buy_box_percentage"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of time product had the Buy Box"
+
+  - aliases:
+      - "Featured Offer (Buy Box) Percentage - B2B"
+      - "Featured Offer (Buy Box) percentage – B2B"  # UK en-dash + lowercase variant
+    db_column: "buy_box_percentage_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Percentage of time product had the B2B Buy Box"
+
+  # Sales Metrics - Units
+  - aliases:
+      - "Units Ordered"
+      - "Units ordered"  # UK lowercase variant
+    db_column: "units_ordered"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of units ordered"
+
+  - aliases:
+      - "Units Ordered - B2B"
+      - "Units ordered – B2B"  # UK en-dash + lowercase variant
+    db_column: "units_ordered_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of B2B units ordered"
+
+  # Conversion Metrics
+  - aliases:
+      - "Unit Session Percentage"
+    db_column: "unit_session_percentage"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Conversion rate (units/sessions)"
+
+  - aliases:
+      - "Unit Session Percentage - B2B"
+      - "Unit session percentage – B2B"  # UK en-dash + lowercase variant
+    db_column: "unit_session_percentage_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "B2B conversion rate"
+
+  # Sales Metrics - Revenue
+  - aliases:
+      - "Ordered Product Sales"
+    db_column: "ordered_product_sales"
+    data_type: "currency"
+    validation: "currency"
+    description: "Total sales revenue in dollars"
+
+  - aliases:
+      - "Ordered Product Sales - B2B"
+      - "Ordered product sales – B2B"  # UK en-dash + lowercase variant
+    db_column: "ordered_product_sales_b2b"
+    data_type: "currency"
+    validation: "currency"
+    description: "B2B sales revenue in dollars"
+
+  # Order Items
+  - aliases:
+      - "Total Order Items"
+      - "Total order items"  # UK lowercase variant
+    db_column: "total_order_items"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Total number of order items"
+
+  - aliases:
+      - "Total Order Items - B2B"
+      - "Total order items – B2B"  # UK en-dash + lowercase variant
+    db_column: "total_order_items_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Total number of B2B order items"
+
+  # Refund Metrics
+  - aliases:
+      - "Units Refunded"
+      - "Units refunded"  # UK lowercase variant
+    db_column: "units_refunded"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of units refunded"
+
+  - aliases:
+      - "Units Refunded - B2B"
+      - "Units refunded – B2B"  # UK en-dash + lowercase variant
+    db_column: "units_refunded_b2b"
+    data_type: "numeric_with_commas"
+    validation: "non_negative"
+    description: "Number of B2B units refunded"
+
+  - aliases:
+      - "Refund Rate"
+    db_column: "refund_rate"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "Refund rate percentage"
+
+  - aliases:
+      - "Refund Rate - B2B"
+      - "Refund rate – B2B"  # UK en-dash + lowercase variant
+    db_column: "refund_rate_b2b"
+    data_type: "percentage"
+    validation: "percentage"
+    description: "B2B refund rate percentage"

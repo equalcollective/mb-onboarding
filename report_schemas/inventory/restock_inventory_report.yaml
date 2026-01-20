@@ -1,0 +1,291 @@
+# Restock Inventory Report Schema
+
+report_type: "restock_inventory"
+display_name: "Restock Inventory Report"
+description: "Amazon FBA Restock Inventory Report with inventory levels, supply metrics, and replenishment recommendations"
+allow_extra_columns: false  # Strict validation - no extra columns allowed
+
+# Temporal configuration - this is a snapshot report, no range
+temporal_config:
+  model: "snapshot"
+  granularity_field: "period_granularity"
+  supported_granularities: ["snapshot"]
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+# A product's inventory state is unique per seller/marketplace/date/SKU/FNSKU/condition
+uniqueness_keys:
+  - "seller_id"       # Metadata column
+  - "marketplace"     # Metadata column
+  - "report_date"     # Metadata column
+  - "msku"            # Report column (Merchant SKU)
+  - "fnsku"           # Report column
+  - "condition"       # Report column
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["snapshot"]
+      default: "snapshot"
+      description: "Time granularity - always 'snapshot' for inventory reports"
+
+# Upload validation checks - validates CSV content against existing data
+upload_validation_checks:
+  enabled: true
+  applies_from_upload: 2  # Skip validation for first upload (no data to compare)
+
+  intersection_checks:
+    - column: "msku"
+      min_intersection_percent: 50
+      check_type: "set_intersection"
+      scope: "seller_marketplace"
+      description: "MSKUs must have 50% overlap with existing data to prevent seller mismatch"
+
+# All columns from Amazon's Restock Inventory Report
+required_columns:
+  # Location/Region
+  - aliases:
+      - "Country"
+      - "Country/region code"
+    db_column: "country_code"
+    data_type: "string"
+    validation: "non_empty"
+    description: "The country associated with this MSKU"
+
+  # Product Identifiers
+  - aliases:
+      - "Product Name"
+    db_column: "product_name"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "The title of your product"
+
+  - aliases:
+      - "FNSKU"
+    db_column: "fnsku"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Amazon's fulfillment network stock keeping unit (SKU) identifier"
+
+  - aliases:
+      - "Merchant SKU"
+      - "MSKU"
+    db_column: "msku"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Merchant stock keeping unit - unique identifier assigned by the seller"
+
+  - aliases:
+      - "ASIN"
+    db_column: "asin"
+    data_type: "string"
+    validation: "asin_format"
+    description: "Amazon standard identification number"
+
+  - aliases:
+      - "Condition"
+    db_column: "condition"
+    data_type: "string"
+    validation: "non_empty"
+    description: "The condition of the unit (new, used, etc.)"
+
+  # Supplier Information
+  - aliases:
+      - "Supplier"
+    db_column: "supplier"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Supplier name"
+
+  - aliases:
+      - "Supplier part no."
+    db_column: "supplier_part_no"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "The part number used by the supplier to identify the item"
+
+  # Currency and Price
+  - aliases:
+      - "Currency code"
+    db_column: "currency_code"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "The currency used for this MSKU"
+
+  - aliases:
+      - "Price"
+    db_column: "price"
+    data_type: "decimal"
+    validation: "allow_null"
+    description: "Your listed price"
+
+  # Sales Metrics
+  - aliases:
+      - "Sales last 30 days"
+      - "Sales last 30 days (sales)"
+    db_column: "sales_last_30_days"
+    data_type: "decimal"
+    validation: "allow_null"
+    description: "Amount sold in the last 30 days"
+
+  - aliases:
+      - "Units Sold Last 30 Days"
+      - "Sales last 30 days (units)"
+    db_column: "units_sold_last_30_days"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units sold in the last 30 days"
+
+  # Inventory Levels
+  - aliases:
+      - "Total Units"
+      - "Total inventory"
+    db_column: "total_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Total inventory equals all available, shipped, and reserved fulfillment center transfer"
+
+  - aliases:
+      - "Inbound"
+      - "Inbound inventory"
+    db_column: "inbound_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units in shipment about which you have notified Amazon"
+
+  - aliases:
+      - "Available"
+      - "Available Inventory"
+    db_column: "available_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units in fulfillment centers that can be picked, packed, and shipped"
+
+  - aliases:
+      - "FC transfer"
+    db_column: "fc_transfer_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units being transferred from one fulfillment center to another"
+
+  - aliases:
+      - "FC Processing"
+    db_column: "fc_processing_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units sidelined at a fulfillment center for additional processing"
+
+  - aliases:
+      - "Customer Order"
+    db_column: "customer_order_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units reserved for customer orders"
+
+  - aliases:
+      - "Unfulfillable"
+    db_column: "unfulfillable_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units in fulfillment centers but not in a condition that can be sold"
+
+  - aliases:
+      - "Working"
+    db_column: "working_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units being worked on"
+
+  - aliases:
+      - "Shipped"
+    db_column: "shipped_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units shipped"
+
+  - aliases:
+      - "Receiving"
+    db_column: "receiving_units"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "Units being received"
+
+  # Fulfillment
+  - aliases:
+      - "Fulfilled by"
+    db_column: "fulfilled_by"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Indicates whether fulfilled by Amazon or by seller"
+
+  # Days of Supply Metrics
+  - aliases:
+      - "Total Days of Supply (including units from open shipments)"
+      - "Days of supply"
+    db_column: "total_days_of_supply"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Estimated days that current inventory supply will last based on projected demand"
+
+  - aliases:
+      - "Days of Supply at Amazon Fulfillment Network"
+    db_column: "days_of_supply_at_amazon"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Days of supply at Amazon fulfillment network"
+
+  # Alerts and Recommendations
+  - aliases:
+      - "Alert"
+      - "Instock alert"
+    db_column: "alert"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Indicates if product is low or out of stock"
+
+  - aliases:
+      - "Recommended replenishment qty"
+      - "Recommended replenishment quantity"
+    db_column: "recommended_replenishment_qty"
+    data_type: "integer"
+    validation: "allow_null"
+    description: "The recommendation for the number of units to be restocked for FBA"
+
+  - aliases:
+      - "Recommended ship date"
+    db_column: "recommended_ship_date"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "The suggested date to ship the product to avoid running low or out of stock"
+
+  - aliases:
+      - "Recommended action"
+    db_column: "recommended_action"
+    data_type: "string"
+    validation: "allow_empty"
+    required: false
+    description: "Recommended action to take"
+
+  - aliases:
+      - "Unit storage size"
+    db_column: "unit_storage_size"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Storage size of the unit"

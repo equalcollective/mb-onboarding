@@ -1,0 +1,29 @@
+# Core
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-dotenv>=1.0.0
+
+# Data processing
+pandas>=2.2.0
+numpy>=1.26.0
+
+# HTTP client
+httpx>=0.26.0
+
+# Export
+openpyxl>=3.1.0  # Excel export
+
+# Validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+
+# Development
+black>=24.0.0
+ruff>=0.1.0
+
+# Claude Code MCP integration (optional)
+# mcp>=0.1.0

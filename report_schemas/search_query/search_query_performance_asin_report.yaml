@@ -1,0 +1,308 @@
+# Search Query Performance ASIN Report Schema
+
+report_type: "search_query_performance_asin"
+display_name: "Search Query Performance ASIN Report"
+description: "Amazon Search Query Performance ASIN Report with search query metrics and performance data"
+allow_extra_columns: false  # Strict validation - no extra columns allowed
+skip_rows: 1  # Skip the metadata row at the top of the CSV
+
+# Temporal configuration - defines how time periods are handled
+temporal_config:
+  model: "range"
+  granularity_field: "period_granularity"
+  supported_granularities: ["weekly", "monthly", "quarterly"]
+  range_fields:
+    start: "period_start_date"
+    end: "period_end_date"
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+# Note: report_date is NOT included because it represents when the report was downloaded,
+# not the data period. The actual period is defined by period_start_date (end_date not included in ASIN report).
+# This ensures that re-downloading the same period replaces old data instead of creating duplicates.
+uniqueness_keys:
+  - "seller_id"           # Metadata column
+  - "marketplace"         # Metadata column
+  - "asin"               # Metadata column - ASIN being analyzed
+  - "period_granularity" # Metadata column
+  - "period_start_date"  # Metadata column
+  - "search_query"       # Report column - each query is unique per report
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "asin"
+      data_type: "string"
+      validation: "asin_format"
+      description: "ASIN being analyzed in the report"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["weekly", "monthly", "quarterly"]
+      description: "Time granularity for this report"
+
+    - name: "period_start_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "Period start date"
+
+    - name: "period_end_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "Period end date"
+
+# All columns from the SQP ASIN Report
+required_columns:
+  # Search Query Information
+  - aliases:
+      - "Search Query"
+    db_column: "search_query"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Customer search query"
+
+  - aliases:
+      - "Search Query Score"
+    db_column: "search_query_score"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Search query performance score"
+
+  - aliases:
+      - "Search Query Volume"
+    db_column: "search_query_volume"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Search query volume/frequency"
+
+  # Impression Metrics
+  - aliases:
+      - "Impressions: Total Count"
+    db_column: "impressions_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of impressions"
+
+  - aliases:
+      - "Impressions: ASIN Count"
+    db_column: "impressions_asin_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of ASIN impressions"
+
+  - aliases:
+      - "Impressions: ASIN Share %"
+    db_column: "impressions_asin_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "ASIN share percentage of total impressions"
+
+  # Click Metrics
+  - aliases:
+      - "Clicks: Total Count"
+    db_column: "clicks_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of clicks"
+
+  - aliases:
+      - "Clicks: Click Rate %"
+    db_column: "clicks_click_rate_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Click-through rate percentage"
+
+  - aliases:
+      - "Clicks: ASIN Count"
+    db_column: "clicks_asin_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of ASIN clicks"
+
+  - aliases:
+      - "Clicks: ASIN Share %"
+    db_column: "clicks_asin_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "ASIN share percentage of total clicks"
+
+  - aliases:
+      - "Clicks: Price (Median)"
+    db_column: "clicks_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of clicked products"
+
+  - aliases:
+      - "Clicks: ASIN Price (Median)"
+    db_column: "clicks_asin_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of ASIN clicked products"
+
+  # Click Shipping Speed
+  - aliases:
+      - "Clicks: Same Day Shipping Speed"
+    db_column: "clicks_same_day_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Same day shipping speed for clicks"
+
+  - aliases:
+      - "Clicks: 1D Shipping Speed"
+    db_column: "clicks_1d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "1 day shipping speed for clicks"
+
+  - aliases:
+      - "Clicks: 2D Shipping Speed"
+    db_column: "clicks_2d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "2 day shipping speed for clicks"
+
+  # Cart Add Metrics
+  - aliases:
+      - "Cart Adds: Total Count"
+    db_column: "cart_adds_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of cart additions"
+
+  - aliases:
+      - "Cart Adds: Cart Add Rate %"
+    db_column: "cart_adds_cart_add_rate_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Cart addition rate percentage"
+
+  - aliases:
+      - "Cart Adds: ASIN Count"
+    db_column: "cart_adds_asin_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of ASIN cart additions"
+
+  - aliases:
+      - "Cart Adds: ASIN Share %"
+    db_column: "cart_adds_asin_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "ASIN share percentage of total cart additions"
+
+  - aliases:
+      - "Cart Adds: Price (Median)"
+    db_column: "cart_adds_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of products added to cart"
+
+  - aliases:
+      - "Cart Adds: ASIN Price (Median)"
+    db_column: "cart_adds_asin_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of ASIN products added to cart"
+
+  # Cart Add Shipping Speed
+  - aliases:
+      - "Cart Adds: Same Day Shipping Speed"
+    db_column: "cart_adds_same_day_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Same day shipping speed for cart additions"
+
+  - aliases:
+      - "Cart Adds: 1D Shipping Speed"
+    db_column: "cart_adds_1d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "1 day shipping speed for cart additions"
+
+  - aliases:
+      - "Cart Adds: 2D Shipping Speed"
+    db_column: "cart_adds_2d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "2 day shipping speed for cart additions"
+
+  # Purchase Metrics
+  - aliases:
+      - "Purchases: Total Count"
+    db_column: "purchases_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of purchases"
+
+  - aliases:
+      - "Purchases: Purchase Rate %"
+    db_column: "purchases_purchase_rate_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Purchase conversion rate percentage"
+
+  - aliases:
+      - "Purchases: ASIN Count"
+    db_column: "purchases_asin_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of ASIN purchases"
+
+  - aliases:
+      - "Purchases: ASIN Share %"
+    db_column: "purchases_asin_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "ASIN share percentage of total purchases"
+
+  - aliases:
+      - "Purchases: Price (Median)"
+    db_column: "purchases_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of purchased products"
+
+  - aliases:
+      - "Purchases: ASIN Price (Median)"
+    db_column: "purchases_asin_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of ASIN purchased products"
+
+  # Purchase Shipping Speed
+  - aliases:
+      - "Purchases: Same Day Shipping Speed"
+    db_column: "purchases_same_day_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Same day shipping speed for purchases"
+
+  - aliases:
+      - "Purchases: 1D Shipping Speed"
+    db_column: "purchases_1d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "1 day shipping speed for purchases"
+
+  - aliases:
+      - "Purchases: 2D Shipping Speed"
+    db_column: "purchases_2d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "2 day shipping speed for purchases"

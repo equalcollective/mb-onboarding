@@ -1,0 +1,337 @@
+# Search Query Performance Brand Report Schema
+
+report_type: "search_query_performance_brand"
+display_name: "Search Query Performance Brand Report"
+description: "Amazon Search Query Performance Brand Report with search query metrics and performance data"
+allow_extra_columns: true  # Allow extra columns (UK has "Reporting Date")
+skip_rows: 1  # Skip the metadata row at the top of the CSV
+
+# Temporal configuration - defines how time periods are handled
+temporal_config:
+  model: "range"
+  granularity_field: "period_granularity"
+  supported_granularities: ["weekly", "monthly", "quarterly"]
+  range_fields:
+    start: "period_start_date"
+    end: "period_end_date"
+  # Note: No row_date_field - Search Query is range-based like Business Reports
+
+# Uniqueness definition - defines what makes a row unique for upsert operations
+# Note: report_date is NOT included because it represents when the report was downloaded,
+# not the data period. The actual period is defined by period_start_date/period_end_date.
+# This ensures that re-downloading the same period replaces old data instead of creating duplicates.
+uniqueness_keys:
+  - "seller_id"           # Metadata column
+  - "marketplace"         # Metadata column
+  - "brand_id"           # Metadata column - foreign key to brands table
+  - "period_granularity" # Metadata column
+  - "period_start_date"  # Metadata column
+  - "period_end_date"    # Metadata column
+  - "search_query"       # Report column - each query is unique per report
+
+# Metadata fields that can be provided with the report
+metadata_schema:
+  required:
+    - name: "report_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "The date for which this report was generated"
+
+    - name: "marketplace"
+      data_type: "string"
+      validation: "marketplace_enum"
+      description: "The marketplace for this report (US or UK)"
+
+    - name: "seller_id"
+      data_type: "string"
+      validation: "non_empty"
+      description: "The seller ID for this report"
+
+    - name: "brand_id"
+      data_type: "integer"
+      validation: "non_negative"
+      description: "Brand ID - foreign key to brands table"
+
+    - name: "period_granularity"
+      data_type: "string"
+      validation: "enum"
+      allowed_values: ["weekly", "monthly", "quarterly"]
+      description: "Time granularity for this report"
+
+    - name: "period_start_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "Period start date"
+
+    - name: "period_end_date"
+      data_type: "date"
+      validation: "valid_date"
+      description: "Period end date"
+
+# Upload validation checks - validates CSV content against existing data
+upload_validation_checks:
+  enabled: true
+  applies_from_upload: 2  # Skip validation for first upload (no data to compare)
+
+  intersection_checks:
+    - column: "search_query"
+      min_intersection_percent: 10
+      check_type: "set_intersection"
+      scope: "seller_marketplace"
+      description: "Search queries must have 10% overlap with existing data (search queries change frequently)"
+
+# All columns from the SQP Brand Report
+required_columns:
+  # Search Query Information
+  - aliases:
+      - "Search Query"
+    db_column: "search_query"
+    data_type: "string"
+    validation: "non_empty"
+    description: "Customer search query"
+
+  - aliases:
+      - "Search Query Score"
+    db_column: "search_query_score"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Search query performance score"
+
+  - aliases:
+      - "Search Query Volume"
+    db_column: "search_query_volume"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Search query volume/frequency"
+
+  # Impression Metrics
+  - aliases:
+      - "Impressions: Total Count"
+    db_column: "impressions_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of impressions"
+
+  - aliases:
+      - "Impressions: Brand Count"
+    db_column: "impressions_brand_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of brand impressions"
+
+  - aliases:
+      - "Impressions: Brand Share %"
+    db_column: "impressions_brand_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Brand share percentage of total impressions"
+
+  # Click Metrics
+  - aliases:
+      - "Clicks: Total Count"
+    db_column: "clicks_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of clicks"
+
+  - aliases:
+      - "Clicks: Click Rate %"
+    db_column: "clicks_click_rate_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Click-through rate percentage"
+
+  - aliases:
+      - "Clicks: Brand Count"
+    db_column: "clicks_brand_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of brand clicks"
+
+  - aliases:
+      - "Clicks: Brand Share %"
+    db_column: "clicks_brand_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Brand share percentage of total clicks"
+
+  - aliases:
+      - "Clicks: Price (Median)"
+    db_column: "clicks_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of clicked products"
+
+  - aliases:
+      - "Clicks: Brand Price (Median)"
+    db_column: "clicks_brand_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of brand clicked products"
+
+  # Click Shipping Speed
+  - aliases:
+      - "Clicks: Same Day Shipping Speed"
+      - "Clicks: Same-Day Shipping Speed"  # UK variant
+    db_column: "clicks_same_day_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Same day shipping speed for clicks"
+
+  - aliases:
+      - "Clicks: 1D Shipping Speed"
+      - "Clicks: 1D-Shipping Speed"  # UK variant
+    db_column: "clicks_1d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "1 day shipping speed for clicks"
+
+  - aliases:
+      - "Clicks: 2D Shipping Speed"
+      - "Clicks: 2D-Shipping Speed"  # UK variant
+    db_column: "clicks_2d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "2 day shipping speed for clicks"
+
+  # Cart Add Metrics (UK uses "Basket Adds" instead of "Cart Adds")
+  - aliases:
+      - "Cart Adds: Total Count"
+      - "Basket Adds: Total Count"  # UK variant
+    db_column: "cart_adds_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of cart additions"
+
+  - aliases:
+      - "Cart Adds: Cart Add Rate %"
+      - "Basket Adds: Basket Add Rate %"  # UK variant
+    db_column: "cart_adds_cart_add_rate_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Cart addition rate percentage"
+
+  - aliases:
+      - "Cart Adds: Brand Count"
+      - "Basket Adds: Brand Count"  # UK variant
+    db_column: "cart_adds_brand_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of brand cart additions"
+
+  - aliases:
+      - "Cart Adds: Brand Share %"
+      - "Basket Adds: Brand Share %"  # UK variant
+    db_column: "cart_adds_brand_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Brand share percentage of total cart additions"
+
+  - aliases:
+      - "Cart Adds: Price (Median)"
+      - "Basket Adds: Price (Median)"  # UK variant
+    db_column: "cart_adds_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of products added to cart"
+
+  - aliases:
+      - "Cart Adds: Brand Price (Median)"
+      - "Basket Adds: Brand Price (Median)"  # UK variant
+    db_column: "cart_adds_brand_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of brand products added to cart"
+
+  # Cart Add Shipping Speed
+  - aliases:
+      - "Cart Adds: Same Day Shipping Speed"
+      - "Basket Adds: Same-Day Shipping Speed"  # UK variant
+    db_column: "cart_adds_same_day_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Same day shipping speed for cart additions"
+
+  - aliases:
+      - "Cart Adds: 1D Shipping Speed"
+      - "Basket Adds: 1D-Shipping Speed"  # UK variant
+    db_column: "cart_adds_1d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "1 day shipping speed for cart additions"
+
+  - aliases:
+      - "Cart Adds: 2D Shipping Speed"
+      - "Basket Adds: 2D-Shipping Speed"  # UK variant
+    db_column: "cart_adds_2d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "2 day shipping speed for cart additions"
+
+  # Purchase Metrics
+  - aliases:
+      - "Purchases: Total Count"
+    db_column: "purchases_total_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Total number of purchases"
+
+  - aliases:
+      - "Purchases: Purchase Rate %"
+    db_column: "purchases_purchase_rate_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Purchase conversion rate percentage"
+
+  - aliases:
+      - "Purchases: Brand Count"
+    db_column: "purchases_brand_count"
+    data_type: "integer"
+    validation: "non_negative"
+    description: "Number of brand purchases"
+
+  - aliases:
+      - "Purchases: Brand Share %"
+    db_column: "purchases_brand_share_pct"
+    data_type: "decimal"
+    validation: "non_negative"
+    description: "Brand share percentage of total purchases"
+
+  - aliases:
+      - "Purchases: Price (Median)"
+    db_column: "purchases_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of purchased products"
+
+  - aliases:
+      - "Purchases: Brand Price (Median)"
+    db_column: "purchases_brand_price_median"
+    data_type: "currency"
+    validation: "allow_null"
+    description: "Median price of brand purchased products"
+
+  # Purchase Shipping Speed
+  - aliases:
+      - "Purchases: Same Day Shipping Speed"
+      - "Purchases: Same-Day Shipping Speed"  # UK variant
+    db_column: "purchases_same_day_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "Same day shipping speed for purchases"
+
+  - aliases:
+      - "Purchases: 1D Shipping Speed"
+      - "Purchases: 1D-Shipping Speed"  # UK variant
+    db_column: "purchases_1d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "1 day shipping speed for purchases"
+
+  - aliases:
+      - "Purchases: 2D Shipping Speed"
+      - "Purchases: 2D-Shipping Speed"  # UK variant
+    db_column: "purchases_2d_shipping_speed"
+    data_type: "string"
+    validation: "allow_empty"
+    description: "2 day shipping speed for purchases"
